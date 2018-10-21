@@ -2,15 +2,25 @@ package masterung.androidthai.in.th.easycommand;
 
 import android.content.Intent;
 import android.speech.RecognizerIntent;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -24,6 +34,8 @@ public class MainActivity extends AppCompatActivity {
 
     private boolean aBoolean = true;
 
+    private TextView tvTextView, lighterTextView, carTextView;
+
 
 
     @Override
@@ -31,12 +43,42 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-
-
 //        Mic Controller
         micController();
 
+        tvTextView = findViewById(R.id.txtTV);
+        lighterTextView = findViewById(R.id.txtLighter);
+        carTextView = findViewById(R.id.txtCar);
+
+        updateStatus();
+
+
+
     }   // Main Method
+
+    private void updateStatus() {
+
+        FirebaseDatabase firebaseDatabase = FirebaseDatabase.getInstance();
+        DatabaseReference databaseReference = firebaseDatabase.getReference();
+        databaseReference.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                Map map = (Map) dataSnapshot.getValue();
+
+                tvTextView.setText(strings[0] + " " + String.valueOf(map.get("TV")));
+                lighterTextView.setText(strings[1] + " " + String.valueOf(map.get("lighter")));
+                carTextView.setText(strings[2] + " " + String.valueOf(map.get("car")));
+
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+
+            }
+        });
+
+
+    }
 
 
     @Override
@@ -48,7 +90,7 @@ public class MainActivity extends AppCompatActivity {
 
 
             ArrayList<String> stringArrayList = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
-            String resultString = stringArrayList.get(0);
+            final String resultString = stringArrayList.get(0);
 
             for (int i = 0; i < strings.length; i += 1) {
 
@@ -60,10 +102,40 @@ public class MainActivity extends AppCompatActivity {
             }   // for
 
             if (aBoolean) {
+//                No Command
                 showCommand("No " + resultString + " in Command");
             } else {
+//                Update Command on Firebase
                 showCommand("Upload " + resultString + " To Firebase");
-            }
+
+                FirebaseDatabase firebaseDatabase = FirebaseDatabase.getInstance();
+                final DatabaseReference databaseReference = firebaseDatabase.getReference();
+
+                databaseReference.addValueEventListener(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+
+                        Map<String, Object> stringObjectMap = new HashMap<>();
+
+                        if (resultString.equals(strings[0])) {
+                            stringObjectMap.put("TV", "on");
+                        } else if (resultString.equals(strings[1])) {
+                            stringObjectMap.put("lighter", "on");
+                        } else  {
+                            stringObjectMap.put("car", "on");
+                        }
+
+                        databaseReference.updateChildren(stringObjectMap);
+
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError databaseError) {
+
+                    }
+                });
+
+            }   // if
 
 
         }
